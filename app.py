@@ -1,65 +1,116 @@
+# Import necessary libraries & Setting up environment variables
+
+import os
 import streamlit as st
 from groq import Groq
+from dotenv import load_dotenv
 
-# Page title and description
-st.set_page_config(page_title="Simple Groq Chatbot", layout="wide")
-st.title("🤖 Simple Groq Chatbot")
-st.write("A beginner-friendly chatbot using Groq API")
+###############################################################
+#########################  BLOCK 1 ############################
+###############################################################
 
-# Sidebar - API Key Input
-st.sidebar.title("Settings")
-st.sidebar.write("Get your free API key from [Groq Console](https://console.groq.com/keys)")
-api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password")
+# 1. Load Environment Variables (for local_testing)
+load_dotenv()
 
-# Check if API key is provided
-if not api_key:
-    st.error("❌ Please enter your Groq API Key to start chatting")
-    st.stop()
+# 2. Initialize Groq Client
+# groq_api_key = os.getenv("GROQ_API_KEY")
+client = Groq()
 
-# Initialize Groq client
-try:
-    client = Groq(api_key=api_key)
-except Exception as e:
-    st.error(f"Error: {e}")
-    st.stop()
+# 3. Page Configuration
+st.set_page_config(page_title="Groq Chatbot Replica", page_icon="🤖")
+st.title("🤖 Groq Chatbot - Powered by Llama")
+st.markdown("**A simple, fast, and smart chatbot for everyone!**")
 
-# Initialize session state for chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+###############################################################
+#########################  BLOCK 2 ############################
+###############################################################
 
-# Display chat history
-for msg in st.session_state.chat_history:
-    if msg["role"] == "user":
-        st.chat_message("user").write(msg["content"])
-    else:
-        st.chat_message("assistant").write(msg["content"])
+# 4. Initialize Chat History
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# User input
-user_input = st.chat_input("Type your message here...")
+###############################################################
+#########################  BLOCK 3 ############################
+###############################################################
 
-if user_input:
-    # Add user message to history
-    st.session_state.chat_history.append({"role": "user", "content": user_input})
-    st.chat_message("user").write(user_input)
+# 5. Display Chat History
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+###############################################################
+#########################  BLOCK 4 ############################
+###############################################################
+
+# 6. Accept User Input
+if prompt := st.chat_input("Ask me anything... 💭"):
     
-    # Get response from Groq API
+    # Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Display user message in chat message container
+    with st.chat_message("user"):
+        st.write(prompt)
+
+
+###############################################################
+#########################  BLOCK 5 ############################
+###############################################################
+
+    # 7. Generate a Response from Groq
     try:
-        response = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
-            messages=st.session_state.chat_history,
-            max_tokens=1024
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Fast and accurate Llama 3
+            messages=st.session_state.messages, 
+            temperature=0.7,  # Balanced creativity and accuracy
+            max_tokens=1024,
+            top_p=1,
+            stream=False,
+            stop=None,
         )
         
-        assistant_message = response.choices[0].message.content
+        # Extract the text from the response object
+        response = completion.choices[0].message.content
         
-        # Add assistant message to history
-        st.session_state.chat_history.append({"role": "assistant", "content": assistant_message})
-        st.chat_message("assistant").write(assistant_message)
-        
-    except Exception as e:
-        st.error(f"Error: {e}")
+        # 8. Display & Save Assistant Response
+        with st.chat_message("assistant"):
+            st.markdown(response)
+            
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Clear chat button
-if st.sidebar.button("Clear Chat History"):
-    st.session_state.chat_history = []
-    st.rerun()
+    except Exception as e:
+        st.error(f"❌ Oops! Something went wrong: {e}")
+
+###############################################################
+# Sidebar - Additional Features
+###############################################################
+
+with st.sidebar:
+    st.title("⚙️ Settings")
+    
+    # Clear chat button
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+    
+    st.divider()
+    
+    # Info section
+    st.info(
+        "**ℹ️ About This Chatbot:**\n\n"
+        "- Powered by Groq API\n"
+        "- Using Llama 3.1 8B Model\n"
+        "- Fast responses (ultra-low latency)\n"
+        "- No API key required (uses system default)"
+    )
+    
+    st.divider()
+    
+    # Model info
+    st.markdown(
+        "**📚 Model Details:**\n\n"
+        "- **Model**: Llama 3.1 8B\n"
+        "- **Provider**: Meta (via Groq)\n"
+        "- **Speed**: Ultra-fast inference\n"
+        "- **Context**: Up to 131,072 tokens"
+    )
